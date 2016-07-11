@@ -62,5 +62,55 @@ describe('StoreObserver', function () {
         expect(onStoreChanged).to.be.calledOnce;
       });
     });
+
+    describe('when you have an id that is registered to the application with matching event key', function () {
+      var onStoreChanged;
+
+      beforeEach(function () {
+        onStoreChanged = sinon.spy();
+
+        var app = new Marty.Application();
+
+        app.register('foo', Marty.Store);
+
+        new StoreObserver({ // jshint ignore:line
+          app: app,
+          component: {},
+          stores: ['foo:bar'],
+          onStoreChanged: onStoreChanged
+        });
+
+        app.foo.hasChanged('bar');
+      });
+
+      it('should trigger onStoreChanged', function () {
+        expect(onStoreChanged).to.be.calledOnce;
+      });
+    });
+
+    describe('when you have an id that is registered to the application with mismatched event keys', function () {
+      var onStoreChanged;
+
+      beforeEach(function () {
+        onStoreChanged = sinon.spy();
+
+        var app = new Marty.Application();
+
+        app.register('foo', Marty.Store);
+
+        new StoreObserver({ // jshint ignore:line
+          app: app,
+          component: {},
+          stores: ['foo:bar'],
+          onStoreChanged: onStoreChanged
+        });
+
+        app.foo.hasChanged('baz');
+      });
+
+      it('should NOT trigger onStoreChanged', function () {
+        expect(onStoreChanged).to.be.notCalled;
+      });
+    });
   });
 });

@@ -1,6 +1,10 @@
 'use strict';
 
+var _slicedToArray = (function () { function sliceIterator(arr, i) { var _arr = []; var _n = true; var _d = false; var _e = undefined; try { for (var _i = arr[Symbol.iterator](), _s; !(_n = (_s = _i.next()).done); _n = true) { _arr.push(_s.value); if (i && _arr.length === i) break; } } catch (err) { _d = true; _e = err; } finally { try { if (!_n && _i['return']) _i['return'](); } finally { if (_d) throw _e; } } return _arr; } return function (arr, i) { if (Array.isArray(arr)) { return arr; } else if (Symbol.iterator in Object(arr)) { return sliceIterator(arr, i); } else { throw new TypeError('Invalid attempt to destructure non-iterable instance'); } }; })();
+
 var _createClass = (function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ('value' in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; })();
+
+function _toArray(arr) { return Array.isArray(arr) ? arr : Array.from(arr); }
 
 function _classCallCheck(instance, Constructor) { if (!(instance instanceof Constructor)) { throw new TypeError('Cannot call a class as a function'); } }
 
@@ -21,8 +25,13 @@ var StoreObserver = (function () {
 
     var stores = resolveStores(options);
 
-    this.listeners = _.map(stores, function (store) {
-      return _this.listenToStore(store);
+    this.listeners = _.map(stores, function (_ref) {
+      var _ref2 = _slicedToArray(_ref, 2);
+
+      var store = _ref2[0];
+      var eventKeys = _ref2[1];
+
+      return _this.listenToStore(store, eventKeys);
     });
   }
 
@@ -33,7 +42,7 @@ var StoreObserver = (function () {
     }
   }, {
     key: 'listenToStore',
-    value: function listenToStore(store) {
+    value: function listenToStore(store, eventKeys) {
       var _this2 = this;
 
       var component = this.component;
@@ -41,10 +50,8 @@ var StoreObserver = (function () {
 
       log.trace('The ' + component.displayName + ' component  (' + component.id + ') is listening to the ' + storeDisplayName + ' store');
 
-      return store.addChangeListener(function (state, store) {
+      return store.addChangeListener(function (state, store, eventArgs) {
         var storeDisplayName = store.displayName || store.id;
-
-        log.trace('' + storeDisplayName + ' store has changed. ' + ('The ' + _this2.component.displayName + ' component (' + _this2.component.id + ') is updating'));
 
         if (store && store.action) {
           store.action.addComponentHandler({
@@ -52,7 +59,16 @@ var StoreObserver = (function () {
           }, store);
         }
 
-        _this2.onStoreChanged(store);
+        var logText = storeDisplayName + ' store has changed.';
+
+        if (!eventKeys.length || eventKeys.indexOf(eventArgs) !== -1) {
+          logText += ' The ' + _this2.component.displayName + ' component (' + _this2.component.id + ') is updating';
+          _this2.onStoreChanged(store);
+        } else {
+          logText += ' The ' + _this2.component.displayName + ' component is !NOT! updating.' + (' Event "' + eventArgs + '" not in keys "' + eventKeys + '"');
+        }
+
+        log.trace(logText);
       });
     }
   }]);
@@ -76,12 +92,21 @@ function resolveStores(options) {
     if (!app) {
       throw new Error('Component not bound to an application');
     }
-    var store = _.get(app, storeId, null);
+
+    var _storeId$split = storeId.split(':');
+
+    var _storeId$split2 = _toArray(_storeId$split);
+
+    var storeName = _storeId$split2[0];
+
+    var eventKeys = _storeId$split2.slice(1);
+
+    var store = _.get(app, storeName, null);
     if (!store) {
-      throw new Error('Could not find the store ' + storeId);
+      throw new Error('Could not find the store ' + storeName);
     }
 
-    return store;
+    return [store, eventKeys];
   });
 }
 
