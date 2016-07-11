@@ -629,6 +629,88 @@ describe('Container', () => {
     });
   });
 
+  describe('when I listen to the id of a store with mismatched event key', () => {
+    var expectedResult;
+
+    beforeEach(() => {
+      app = new Marty.Application();
+
+      updatedProps = { old: 'props' };
+
+      app.register('fooStore', Marty.createStore({
+        getInitialState() {
+          return {};
+        },
+        addFoo(foo) {
+          this.state[foo.id] = foo;
+          this.hasChanged('bar');
+        },
+        getFoo(id) {
+          return this.state[id];
+        }
+      }));
+
+      element = render(wrap(InnerComponent, {
+        listenTo: 'fooStore:baz',
+        fetch: {
+          foo() {
+            return this.app.fooStore.getFoo(123);
+          }
+        }
+      }));
+
+      expectedResult = { id: 123 };
+      app.fooStore.addFoo(expectedResult);
+    });
+
+    it('should NOT update the inner components props when the store changes', () => {
+      expect(updatedProps).to.eql({
+        old: 'props'
+      });
+    });
+  });
+
+  describe('when I listen to the id of a store with a matching event key', () => {
+    var expectedResult;
+
+    beforeEach(() => {
+      app = new Marty.Application();
+
+      updatedProps = { old: 'props' };
+
+      app.register('fooStore', Marty.createStore({
+        getInitialState() {
+          return {};
+        },
+        addFoo(foo) {
+          this.state[foo.id] = foo;
+          this.hasChanged('bar');
+        },
+        getFoo(id) {
+          return this.state[id];
+        }
+      }));
+
+      element = render(wrap(InnerComponent, {
+        listenTo: 'fooStore:bar',
+        fetch: {
+          foo() {
+            return this.app.fooStore.getFoo(123);
+          }
+        }
+      }));
+
+      expectedResult = { id: 123 };
+      app.fooStore.addFoo(expectedResult);
+    });
+
+    it('should update the inner components props when the store changes', () => {
+      expect(updatedProps).to.eql({
+        foo: expectedResult
+      });
+    });
+  });
+
   describe('when I listen to a store', () => {
     var expectedResult;
 
