@@ -12,8 +12,8 @@ class StoreObserver {
 
     var stores = resolveStores(options);
 
-    this.listeners = _.map(stores, (store) => {
-      return this.listenToStore(store);
+    this.listeners = _.map(stores, ([store, eventKeys]) => {
+      return this.listenToStore(store, eventKeys);
     });
   }
 
@@ -21,7 +21,7 @@ class StoreObserver {
     _.invoke(this.listeners, 'dispose');
   }
 
-  listenToStore(store) {
+  listenToStore(store, eventKeys) {
     let component = this.component;
     let storeDisplayName = store.displayName || store.id;
 
@@ -29,13 +29,8 @@ class StoreObserver {
       `The ${component.displayName} component  (${component.id}) is listening to the ${storeDisplayName} store`
     );
 
-    return store.addChangeListener((state, store) => {
+    return store.addChangeListener((state, store, eventArgs) => {
       let storeDisplayName = store.displayName || store.id;
-
-      log.trace(
-        `${storeDisplayName} store has changed. ` +
-        `The ${this.component.displayName} component (${this.component.id}) is updating`
-      );
 
       if (store && store.action) {
         store.action.addComponentHandler({
@@ -43,7 +38,17 @@ class StoreObserver {
         }, store);
       }
 
-      this.onStoreChanged(store);
+      var logText = `${storeDisplayName} store has changed.`;
+
+      if (!eventKeys.length || eventKeys.indexOf(eventArgs) !== -1) {
+        logText += ` The ${this.component.displayName} component (${this.component.id}) is updating`;
+        this.onStoreChanged(store);
+      } else {
+        logText += ` The ${this.component.displayName} component is !NOT! updating.` +
+          ` Event "${eventArgs}" not in keys "${eventKeys}"`;
+      }
+
+      log.trace(logText);
     });
   }
 }
@@ -67,12 +72,14 @@ function resolveStores(options) {
     if (!app) {
       throw new Error('Component not bound to an application');
     }
-    var store = _.get(app, storeId, null);
+
+    var [storeName, ...eventKeys] = storeId.split(':');
+    var store = _.get(app, storeName, null);
     if (!store) {
-      throw new Error(`Could not find the store ${storeId}`);
+      throw new Error(`Could not find the store ${storeName}`);
     }
 
-    return store;
+    return [store, eventKeys];
   });
 }
 
